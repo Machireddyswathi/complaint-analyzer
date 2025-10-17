@@ -1,0 +1,44 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node modules (for React)
+frontend/node_modules/
+
+# Build and dist output (for React)
+frontend/dist/
+build/
+dist/
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Optional: large lock files (keep if working solo)
+# package-lock.json
+
+# Config files (if sensitive)
+# tailwind.config.js
+# postcss.config.js
+# vite.config.js
