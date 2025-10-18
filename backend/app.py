@@ -158,12 +158,14 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    port = int(os.environ.get("PORT", 8000))
+    
     print("\n" + "="*60)
     print("🚀 AI COMPLAINT ANALYZER - BACKEND SERVER")
     print("="*60)
-    print("📡 Server URL: http://localhost:8000")
-    print("📚 API Docs: http://localhost:8000/docs")
-    print("💚 Health Check: http://localhost:8000/health")
+    print(f"📡 Server URL: http://0.0.0.0:{port}")
     print("="*60 + "\n")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -3,7 +3,11 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
+import certifi  # ✅ ADD THIS LINE
 
+load_dotenv()
+
+MONGODB_URL = os.getenv
 load_dotenv()
 
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
