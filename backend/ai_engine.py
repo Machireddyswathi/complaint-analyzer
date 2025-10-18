@@ -1,16 +1,20 @@
-from transformers import pipeline
+import requests
 import re
 import os
+from dotenv import load_dotenv
 
-# Set cache directory to /tmp (Railway allows this)
-os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
-os.environ['HF_HOME'] = '/tmp/huggingface'
+load_dotenv()
 
-print("✅ AI engine initialized (models will load on first use)")
+# Get HuggingFace API token from environment
+HF_API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
 
-# Global variables to store loaded models
-_classifier = None
-_sentiment_analyzer = None
+# API endpoints
+CLASSIFIER_API = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli"
+SENTIMENT_API = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
+
+HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+
+print("✅ AI engine initialized (using HuggingFace Inference API)")
 
 # Categories for classification
 CATEGORIES = [
@@ -23,40 +27,7 @@ CATEGORIES = [
     "Account Issues"
 ]
 
-# Urgent keywords
 URGENT_KEYWORDS = ["urgent", "asap", "immediately", "emergency", "critical", "refund", "fraud", "lawsuit"]
-
-def load_models():
-    """Load AI models lazily (only when first needed)"""
-    global _classifier, _sentiment_analyzer
-    
-    if _classifier is None or _sentiment_analyzer is None:
-        print("📥 Loading AI models for the first time (this may take 30-60 seconds)...")
-        
-        try:
-            # Load classification model
-            print("Loading classification model...")
-            _classifier = pipeline(
-                "zero-shot-classification", 
-                model="facebook/bart-large-mnli",
-                device=-1  # Force CPU
-            )
-            
-            # Load sentiment model
-            print("Loading sentiment model...")
-            _sentiment_analyzer = pipeline(
-                "sentiment-analysis",
-                model="distilbert-base-uncased-finetuned-sst-2-english",
-                device=-1  # Force CPU
-            )
-            
-            print("✅ AI models loaded successfully!")
-            
-        except Exception as e:
-            print(f"❌ Error loading models: {e}")
-            raise e
-    
-    return _classifier, _sentiment_analyzer
 
 def preprocess_text(text):
     """Clean and preprocess complaint text"""
@@ -65,32 +36,49 @@ def preprocess_text(text):
     return text
 
 def classify_complaint(text):
-    """Classify complaint into categories"""
+    """Classify complaint using HuggingFace API"""
     try:
-        classifier, _ = load_models()
+        payload = {
+            "inputs": text,
+            "parameters": {"candidate_labels": CATEGORIES}
+        }
         
-        # Use only top 5 categories to save memory
-        result = classifier(text, CATEGORIES[:5], multi_label=False)
-        return result["labels"][0], result["scores"][0]
+        response = requests.post(CLASSIFIER_API, headers=HEADERS, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result["labels"][0], result["scores"][0]
+        else:
+            print(f"⚠️ Classification API error: {response.status_code}")
+            return "Customer Service", 0.5
+            
     except Exception as e:
         print(f"❌ Classification error: {e}")
         return "Customer Service", 0.5
 
 def analyze_sentiment(text):
-    """Analyze sentiment of complaint"""
+    """Analyze sentiment using HuggingFace API"""
     try:
-        _, sentiment_analyzer = load_models()
-        
-        # Truncate long text to save memory
+        # Truncate long text
         truncated_text = text[:512]
-        result = sentiment_analyzer(truncated_text)[0]
-        return result["label"], result["score"]
+        
+        payload = {"inputs": truncated_text}
+        
+        response = requests.post(SENTIMENT_API, headers=HEADERS, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()[0][0]
+            return result["label"], result["score"]
+        else:
+            print(f"⚠️ Sentiment API error: {response.status_code}")
+            return "NEGATIVE", 0.5
+            
     except Exception as e:
         print(f"❌ Sentiment analysis error: {e}")
         return "NEGATIVE", 0.5
 
 def calculate_priority(text, sentiment_label):
-    """Calculate priority score based on sentiment and keywords"""
+    """Calculate priority score"""
     priority_score = 0
     
     if sentiment_label == "NEGATIVE":
@@ -113,11 +101,11 @@ def calculate_priority(text, sentiment_label):
 
 def process_complaint(text):
     """Main processing function"""
-    print(f"🔄 Processing complaint: {text[:50]}...")
+    print(f"🔄 Processing complaint via HuggingFace API: {text[:50]}...")
     
     processed_text = preprocess_text(text)
     
-    # AI Analysis (models loaded on first call)
+    # Call HuggingFace APIs
     category, category_confidence = classify_complaint(processed_text)
     sentiment_label, sentiment_score = analyze_sentiment(processed_text)
     priority, priority_score = calculate_priority(text, sentiment_label)
