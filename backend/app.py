@@ -169,3 +169,20 @@ if __name__ == "__main__":
     print("="*60 + "\n")
     
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+@app.get("/warmup")
+def warmup():
+    """Pre-load AI models (call this once after deployment)"""
+    try:
+        from ai_engine import load_models
+        load_models()
+        return {
+            "status": "success",
+            "message": "AI models loaded and ready!"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
