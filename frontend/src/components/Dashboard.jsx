@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://complaint-analyzer-production-5655.up.railway.app'
 
 function Dashboard({ refreshTrigger }) {
   const [complaints, setComplaints] = useState([])

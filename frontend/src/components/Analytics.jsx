@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://complaint-analyzer-production-5655.up.railway.app'
 
 const COLORS = ['#2563eb', '#dc2626', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ec4899']
 
