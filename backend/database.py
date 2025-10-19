@@ -3,11 +3,8 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
-import certifi  # ✅ ADD THIS LINE
+import certifi  # ✅ This fixes SSL!
 
-load_dotenv()
-
-MONGODB_URL = os.getenv
 load_dotenv()
 
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -17,23 +14,26 @@ DATABASE_NAME = os.getenv("DATABASE_NAME", "complaint_analyzer")
 IST = timezone(timedelta(hours=5, minutes=30))
 
 try:
-    client = MongoClient(MONGODB_URL)
+    # ✅ Add tlsCAFile parameter with certifi
+    client = MongoClient(
+        MONGODB_URL,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=30000,
+        connectTimeoutMS=30000,
+        socketTimeoutMS=30000
+    )
     db = client[DATABASE_NAME]
     complaints_collection = db["complaints"]
+    
+    # Test connection
+    client.admin.command('ping')
     print(f"✅ Connected to MongoDB: {DATABASE_NAME}")
 except Exception as e:
     print(f"❌ MongoDB connection error: {e}")
 
-def serialize_datetime(obj):
-    """Convert datetime objects to ISO format strings"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    return obj
-
 def save_complaint(complaint_data):
     """Save complaint to MongoDB with IST timestamp"""
     try:
-        # Get current time in IST
         ist_now = datetime.now(IST)
         
         complaint_data["timestamp"] = ist_now.isoformat()
@@ -43,7 +43,7 @@ def save_complaint(complaint_data):
         result = complaints_collection.insert_one(complaint_data)
         complaint_id = str(result.inserted_id)
         
-        print(f"💾 Saved complaint with ID: {complaint_id} at {complaint_data['created_at']}")
+        print(f"💾 Saved complaint with ID: {complaint_id}")
         return complaint_id
     except Exception as e:
         print(f"❌ Error saving complaint: {e}")
@@ -54,19 +54,15 @@ def get_all_complaints():
     try:
         complaints = list(complaints_collection.find().sort("timestamp", -1))
         
-        # Convert ObjectId and datetime objects to strings
         for complaint in complaints:
-            # Convert ObjectId
             complaint["_id"] = str(complaint["_id"])
             
-            # Convert datetime objects to ISO strings
             if "timestamp" in complaint and isinstance(complaint["timestamp"], datetime):
                 complaint["timestamp"] = complaint["timestamp"].isoformat()
             
             if "created_at" in complaint and isinstance(complaint["created_at"], datetime):
                 complaint["created_at"] = complaint["created_at"].strftime("%Y-%m-%d %H:%M:%S IST")
             
-            # Handle any other datetime fields
             for key, value in complaint.items():
                 if isinstance(value, datetime):
                     complaint[key] = value.isoformat()
