@@ -3,7 +3,6 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
-import ssl
 
 load_dotenv()
 
@@ -13,31 +12,49 @@ DATABASE_NAME = os.getenv("DATABASE_NAME", "complaint_analyzer")
 # Indian Standard Time (IST) = UTC + 5:30
 IST = timezone(timedelta(hours=5, minutes=30))
 
-try:
-    # ✅ Use ssl.CERT_NONE to bypass certificate verification
-    # This is acceptable for MongoDB Atlas as it's a trusted service
-    client = MongoClient(
-        MONGODB_URL,
-        tls=True,
-        tlsAllowInvalidCertificates=True,  # Skip certificate validation
-        serverSelectionTimeoutMS=30000,
-        connectTimeoutMS=30000,
-        socketTimeoutMS=30000
-    )
-    db = client[DATABASE_NAME]
-    complaints_collection = db["complaints"]
+# ✅ Global client variable (will be initialized on first use)
+_client = None
+_db = None
+_complaints_collection = None
+
+print("✅ MongoDB configuration loaded (will connect on first use)")
+
+def get_database():
+    """Get or create database connection (lazy initialization)"""
+    global _client, _db, _complaints_collection
     
-    # Test connection
-    client.admin.command('ping')
-    print(f"✅ Connected to MongoDB: {DATABASE_NAME}")
-except Exception as e:
-    print(f"❌ MongoDB connection error: {e}")
-    import traceback
-    print(traceback.format_exc())
+    if _client is None:
+        try:
+            print("🔄 Connecting to MongoDB...")
+            _client = MongoClient(
+                MONGODB_URL,
+                tls=True,
+                tlsAllowInvalidCertificates=True,
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
+                socketTimeoutMS=30000
+            )
+            _db = _client[DATABASE_NAME]
+            _complaints_collection = _db["complaints"]
+            
+            # Test connection
+            _client.admin.command('ping')
+            print(f"✅ Connected to MongoDB: {DATABASE_NAME}")
+        except Exception as e:
+            print(f"❌ MongoDB connection error: {e}")
+            # Don't crash the app - just log the error
+            _client = None
+            _db = None
+            _complaints_collection = None
+            raise e
+    
+    return _db, _complaints_collection
 
 def save_complaint(complaint_data):
     """Save complaint to MongoDB with IST timestamp"""
     try:
+        _, complaints_collection = get_database()
+        
         ist_now = datetime.now(IST)
         
         complaint_data["timestamp"] = ist_now.isoformat()
@@ -56,6 +73,8 @@ def save_complaint(complaint_data):
 def get_all_complaints():
     """Retrieve all complaints sorted by newest first"""
     try:
+        _, complaints_collection = get_database()
+        
         complaints = list(complaints_collection.find().sort("timestamp", -1))
         
         for complaint in complaints:
@@ -80,6 +99,8 @@ def get_all_complaints():
 def get_complaint_stats():
     """Get analytics data"""
     try:
+        _, complaints_collection = get_database()
+        
         pipeline = [
             {
                 "$group": {

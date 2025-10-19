@@ -150,10 +150,18 @@ def get_analytics():
 
 @app.get("/health")
 def health_check():
+    db_status = "unknown"
+    try:
+        from database import get_database
+        get_database()
+        db_status = "connected"
+    except:
+        db_status = "disconnected"
+    
     return {
         "status": "healthy",
         "message": "Backend is running",
-        "database": "connected"
+        "database": db_status
     }
 
 if __name__ == "__main__":
