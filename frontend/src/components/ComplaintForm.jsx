@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const API_URL = 'https://complaint-analyzer-production-5655.up.railway.app'
+const API_URL = 'https://complaint-analyzer-backend11-o8ru.onrender.com'
 function ComplaintForm({ onSuccess }) {
   const [formData, setFormData] = useState({
     text: '',
