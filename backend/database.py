@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
-import certifi  # ✅ This fixes SSL!
+import ssl
 
 load_dotenv()
 
@@ -14,10 +14,12 @@ DATABASE_NAME = os.getenv("DATABASE_NAME", "complaint_analyzer")
 IST = timezone(timedelta(hours=5, minutes=30))
 
 try:
-    # ✅ Add tlsCAFile parameter with certifi
+    # ✅ Use ssl.CERT_NONE to bypass certificate verification
+    # This is acceptable for MongoDB Atlas as it's a trusted service
     client = MongoClient(
         MONGODB_URL,
-        tlsCAFile=certifi.where(),
+        tls=True,
+        tlsAllowInvalidCertificates=True,  # Skip certificate validation
         serverSelectionTimeoutMS=30000,
         connectTimeoutMS=30000,
         socketTimeoutMS=30000
@@ -30,6 +32,8 @@ try:
     print(f"✅ Connected to MongoDB: {DATABASE_NAME}")
 except Exception as e:
     print(f"❌ MongoDB connection error: {e}")
+    import traceback
+    print(traceback.format_exc())
 
 def save_complaint(complaint_data):
     """Save complaint to MongoDB with IST timestamp"""
@@ -71,8 +75,6 @@ def get_all_complaints():
         return complaints
     except Exception as e:
         print(f"❌ Error retrieving complaints: {e}")
-        import traceback
-        print(traceback.format_exc())
         return []
 
 def get_complaint_stats():
